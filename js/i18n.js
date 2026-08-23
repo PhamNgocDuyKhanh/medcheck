@@ -109,7 +109,10 @@ const TRANSLATIONS = {
       'Key được lưu CHỈ trên trình duyệt của bạn (LocalStorage) và gửi thẳng đến Google. MedCheck không có máy chủ và không bao giờ nhìn thấy key của bạn.',
     apiKeyGetFree: 'Lấy Key Miễn Phí',
     modelLabel: 'Model Gemini:',
-    modelHelp: 'Chỉ đổi nếu bạn biết tên model khác — mặc định phù hợp cho hầu hết trường hợp.',
+    modelHelp:
+      'Chỉ đổi nếu bạn biết tên model khác — mặc định phù hợp cho hầu hết trường hợp. Nếu model này quá tải hoặc hết hạn mức, hệ thống sẽ tự động thử các model dự phòng khác.',
+    settingsFallbackChainLabel: 'Thứ tự dự phòng tự động khi model đầu tiên bị quá tải/hết hạn mức:',
+    settingsFallbackActiveBadge: 'ĐANG DÙNG',
     responseLanguageLabel: 'Ngôn ngữ phản hồi của AI:',
     responseLanguageHelp:
       'Ngôn ngữ Gemini dùng để phân tích và giải thích kết quả — độc lập với ngôn ngữ giao diện ở trên.',
@@ -138,6 +141,11 @@ const TRANSLATIONS = {
     loadingPrescription: 'AI đang đọc đơn thuốc...',
     loadingLab: 'AI đang phân tích kết quả xét nghiệm...',
     loadingGeneric: 'Đang xử lý, đợi xíu nhé...',
+    statusRetrying: 'Máy chủ đang bận, đang thử lại... ({{attempt}}/{{max}})',
+    statusFallback: 'Đang chuyển sang model dự phòng {{model}}...',
+    statusTrying: 'Đang gửi yêu cầu đến AI...',
+    statusSuccess: 'Hoàn tất!',
+    statusFailed: 'Yêu cầu thất bại.',
 
     errNoApiKey: 'Vui lòng nhập Gemini API Key trong phần Cài Đặt trước.',
     errCameraDenied: 'Không thể truy cập camera. Vui lòng cấp quyền hoặc dùng nút tải file.',
@@ -145,6 +153,8 @@ const TRANSLATIONS = {
     errInvalidFileType: 'Định dạng file không được hỗ trợ ở mục này.',
     errApiGeneric: 'Có lỗi khi gọi Gemini API. Vui lòng kiểm tra lại API Key và thử lại.',
     errApiWithMessage: 'Lỗi từ Gemini: {{message}}',
+    errAllModelsExhausted:
+      'Tất cả các model AI đều đang quá tải hoặc hết hạn mức miễn phí. Vui lòng thử lại sau ít phút.',
     errEmptyFoodName: 'Vui lòng nhập tên món ăn.',
     errNoMedia: 'Vui lòng chụp ảnh hoặc tải file trước khi phân tích.',
     errFilesSkippedType: 'Đã bỏ qua {{names}} vì định dạng không được hỗ trợ ở mục này.',
@@ -232,7 +242,10 @@ const TRANSLATIONS = {
       'Your key is stored ONLY in your browser (LocalStorage) and sent directly to Google. MedCheck has no server and never sees your key.',
     apiKeyGetFree: 'Get a Free Key',
     modelLabel: 'Gemini model:',
-    modelHelp: 'Only change this if you know a specific model name — the default works for most cases.',
+    modelHelp:
+      "Only change this if you know a specific model name — the default works for most cases. If this model is busy or out of quota, the app automatically retries and falls back to backup models.",
+    settingsFallbackChainLabel: 'Automatic fallback order if the first model is busy or out of quota:',
+    settingsFallbackActiveBadge: 'ACTIVE',
     responseLanguageLabel: 'AI response language:',
     responseLanguageHelp:
       "The language Gemini uses to analyze and explain results — independent from the interface language above.",
@@ -261,6 +274,11 @@ const TRANSLATIONS = {
     loadingPrescription: 'AI is reading the prescription...',
     loadingLab: 'AI is analyzing the lab report...',
     loadingGeneric: 'Processing, one moment...',
+    statusRetrying: 'Server busy, retrying... ({{attempt}}/{{max}})',
+    statusFallback: 'Switching to backup model {{model}}...',
+    statusTrying: 'Sending request to AI...',
+    statusSuccess: 'Done!',
+    statusFailed: 'Request failed.',
 
     errNoApiKey: 'Please enter your Gemini API Key in Settings first.',
     errCameraDenied: 'Could not access the camera. Please grant permission or use the upload button.',
@@ -268,6 +286,8 @@ const TRANSLATIONS = {
     errInvalidFileType: 'That file type is not supported here.',
     errApiGeneric: 'Something went wrong calling the Gemini API. Please check your API Key and try again.',
     errApiWithMessage: 'Gemini error: {{message}}',
+    errAllModelsExhausted:
+      'All AI models are currently overloaded or out of free quota. Please try again in a few minutes.',
     errEmptyFoodName: 'Please enter a food name.',
     errNoMedia: 'Please capture a photo or upload a file before analyzing.',
     errFilesSkippedType: 'Skipped {{names}} — unsupported file type here.',
