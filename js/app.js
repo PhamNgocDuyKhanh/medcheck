@@ -35,12 +35,33 @@ function mapErrorToMessage(err) {
   switch (err.code) {
     case 'NO_KEY':
       return i18n.t('errNoApiKey');
+    case 'ALL_MODELS_EXHAUSTED':
+      // Every model in the fallback chain (config.js FALLBACK_MODELS) hit a
+      // 429/503-class error even after retrying with backoff - this is a
+      // capacity/quota issue, not a bad request, so give a distinct message
+      // instead of the generic one.
+      return i18n.t('errAllModelsExhausted');
     case 'NETWORK':
     case 'API_ERROR':
     case 'BAD_RESPONSE':
       return i18n.t('errApiWithMessage', { message: err.message });
     default:
       return i18n.t('errApiGeneric');
+  }
+}
+
+// Turns a gemini-api.js onStatusUpdate event into a live status-badge
+// update (see ui.setAnalyzeStatus) so retries and model fallbacks are shown
+// as calm, informative states rather than looking like a stuck spinner or
+// a hard error mid-scan.
+function handleAnalyzeStatusUpdate(status) {
+  if (status.type === 'retry') {
+    ui.setAnalyzeStatus({
+      state: 'retrying',
+      text: i18n.t('statusRetrying', { attempt: status.attempt, max: status.maxRetries }),
+    });
+  } else if (status.type === 'fallback') {
+    ui.setAnalyzeStatus({ state: 'fallback', text: i18n.t('statusFallback', { model: status.model }) });
   }
 }
 
@@ -65,9 +86,11 @@ async function handleAnalyze(mode, payload) {
       model,
       promptText,
       media: payload.media || null,
+      onStatusUpdate: handleAnalyzeStatusUpdate,
     });
 
     ui.hideLoading();
+    ui.setAnalyzeStatus({ state: 'success', text: i18n.t('statusSuccess') });
     ui.renderResult(result);
 
     storage.addHistoryEntry({
@@ -82,6 +105,7 @@ async function handleAnalyze(mode, payload) {
     ui.resetCaptureZoneIfApplicable(mode);
   } catch (err) {
     ui.hideLoading();
+    ui.setAnalyzeStatus({ state: 'failed', text: i18n.t('statusFailed') });
     ui.showError(mapErrorToMessage(err));
   }
 }
