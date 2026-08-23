@@ -1014,6 +1014,111 @@ input[type='number']::-webkit-inner-spin-button {
   white-space: pre-line;
 }
 
+/* --------------------- Settings: fallback-chain chips --------------------- */
+/* Visualizes the exact chain gemini-api.js's buildModelChain() will use at
+   request time — the user's preferred model first (badged ACTIVE), then
+   the standard FALLBACK_MODELS, de-duplicated. Re-rendered live as the
+   Settings model field is typed into. */
+
+.fallback-chain-label {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin: var(--space-2) 0 6px;
+}
+
+.fallback-chain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-3);
+}
+
+.fallback-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.fallback-chip--active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.fallback-chip-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background: var(--accent-strong);
+  color: var(--accent-contrast);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+}
+
+.fallback-chain-arrow {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  opacity: 0.6;
+}
+
+/* --------------------------- Live analyze status --------------------------- */
+/* Small badge under the loading spinner reflecting exactly what
+   gemini-api.js is doing: trying / retrying (same model, backoff) /
+   fallback (switched model) / success / failed. Terminal states fade
+   themselves out — see the JS-driven timeout in ui.js's setAnalyzeStatus(). */
+
+.analyze-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: var(--space-2);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  opacity: 1;
+  transition: opacity 0.35s ease;
+}
+
+.analyze-status[hidden] {
+  display: none;
+}
+
+.analyze-status--fading {
+  opacity: 0;
+}
+
+.analyze-status--trying,
+.analyze-status--retrying {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.analyze-status--fallback {
+  background: var(--verdict-yellow-bg);
+  color: var(--verdict-yellow);
+}
+
+.analyze-status--success {
+  background: var(--verdict-green-bg);
+  color: var(--verdict-green);
+}
+
+.analyze-status--failed {
+  background: var(--verdict-red-bg);
+  color: var(--verdict-red);
+}
+
 .toast {
   position: fixed;
   left: 50%;
