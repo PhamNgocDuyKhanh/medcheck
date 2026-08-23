@@ -48,9 +48,14 @@ export async function analyzeWithGemini({ apiKey, model, promptText, media }) {
   try {
     response = await fetch(GEMINI_ENDPOINT(model), {
       method: 'POST',
+      // Enforce standard CORS behavior on mobile browsers like Safari Mobile
+      mode: 'cors',
+      // Prevent Safari from appending or expecting Google login cookies/OAuth tokens
+      credentials: 'omit',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey,
+        // Trim hidden spaces/newlines often introduced during mobile copy-paste
+        'x-goog-api-key': apiKey.trim(),
       },
       body: JSON.stringify({
         contents: [{ parts }],
