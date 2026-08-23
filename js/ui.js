@@ -2,16 +2,21 @@
  * ui.js
  * Owns all DOM rendering and DOM-driven state (tabs, capture zones, modals,
  * result cards, toasts). It calls into camera.js for media primitives and
- * storage.js to populate forms, but NEVER calls gemini-api.js directly —
- * network orchestration lives in app.js, keeping the "only one file talks
- * to the network" guarantee easy to verify by reading gemini-api.js alone.
+ * storage.js to populate forms, but NEVER calls gemini-api.js's network
+ * function (analyzeWithGemini) — network orchestration stays in app.js,
+ * keeping the "only one function in the entire app talks to the network"
+ * guarantee easy to verify by reading gemini-api.js alone. The one import
+ * from gemini-api.js below (buildModelChain) is a pure, synchronous,
+ * fetch-free helper used only to render the Settings fallback-chain
+ * preview — it performs no I/O.
  */
 
-import { MODES, ACCEPTED_TYPES, MAX_FILES_PER_ANALYSIS, MAX_TOTAL_INLINE_BYTES } from './config.js';
+import { MODES, ACCEPTED_TYPES, MAX_FILES_PER_ANALYSIS, MAX_TOTAL_INLINE_BYTES, DEFAULT_MODEL } from './config.js';
 import { t } from './i18n.js';
 import * as storage from './storage.js';
 import * as camera from './camera.js';
 import { iconSvg, hydrateIcons } from './icons.js';
+import { buildModelChain } from './gemini-api.js';
 
 /* ------------------------------ helpers ------------------------------ */
 
@@ -357,10 +362,79 @@ export function showLoading(mode) {
   $('loading-text').textContent = t(LOADING_KEY_BY_MODE[mode] || 'loadingGeneric');
   hydrateIcons(el);
   el.hidden = false;
+  setAnalyzeStatus({ state: 'trying', text: t('statusTrying') });
 }
 
 export function hideLoading() {
   $('loading').hidden = true;
+}
+
+// Updates the loading line in place (e.g. "Server busy, retrying...") while
+// a retry/fallback is happening in gemini-api.js. Guarded on `hidden` so a
+// late/racing update can never make stale status text flash back onto
+// screen after the request has already finished and the spinner is gone.
+export function updateLoadingStatus(text) {
+  const el = $('loading');
+  if (el.hidden) return;
+  $('loading-text').textContent = text;
+}
+
+/* -------------------------- live analyze status -------------------------- */
+// A small, calm status badge rendered right under the loading spinner.
+// States: 'trying' (just started), 'retrying' (backoff in progress on the
+// same model), 'fallback' (switched to the next model in the chain),
+// 'success' / 'failed' (auto-hides itself after a few seconds). The point
+// is to surface retries/fallbacks as plain information rather than letting
+// the spinner look stuck or jumping straight to a scary error — the user
+// sees exactly what's happening.
+
+let analyzeStatusHideTimer = null;
+
+const ANALYZE_STATUS_ICON = {
+  trying: 'spinner',
+  retrying: 'spinner',
+  fallback: 'refresh',
+  success: 'check',
+  failed: 'xMark',
+};
+
+function ensureAnalyzeStatusEl() {
+  let el = $('analyze-status');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'analyze-status';
+    el.className = 'analyze-status';
+    el.hidden = true;
+    $('loading').insertAdjacentElement('afterend', el);
+  }
+  return el;
+}
+
+export function setAnalyzeStatus({ state, text }) {
+  const el = ensureAnalyzeStatusEl();
+  clearTimeout(analyzeStatusHideTimer);
+  el.className = `analyze-status analyze-status--${state}`;
+  el.hidden = false;
+  const icon = iconSvg(ANALYZE_STATUS_ICON[state] || 'spinner', { size: 15, strokeWidth: 2.2 });
+  el.innerHTML = `${icon}<span>${escapeHtml(text)}</span>`;
+
+  // Terminal states fade themselves out after a few seconds so a completed
+  // analysis doesn't leave a permanent "Success"/"Failed" pill on screen —
+  // it's a brief confirmation, not a persistent status bar.
+  if (state === 'success' || state === 'failed') {
+    analyzeStatusHideTimer = setTimeout(() => {
+      el.classList.add('analyze-status--fading');
+      setTimeout(() => {
+        el.hidden = true;
+      }, 350); // matches the CSS opacity transition duration
+    }, 4000);
+  }
+}
+
+export function clearAnalyzeStatus() {
+  clearTimeout(analyzeStatusHideTimer);
+  const el = $('analyze-status');
+  if (el) el.hidden = true;
 }
 
 /* -------------------------------- result --------------------------------- */
@@ -477,7 +551,52 @@ export function openProfileModal() {
 }
 export function openSettingsModal() {
   populateSettingsForm({ apiKey: storage.getApiKey(), model: storage.getModel(), responseLang: storage.getResponseLang() });
+  renderFallbackChainVisual(storage.getModel());
   openModal('modal-settings');
+}
+
+// The model field only ever shows ONE model — the user's preferred/primary
+// one — because the fallback chain (config.js FALLBACK_MODELS) is meant to
+// be automatic and invisible during normal use, only kicking in on a
+// 429/503 error. This renders that chain visually as a chip strip right
+// under the field: whatever is currently typed/saved as the preferred
+// model appears first with an "ACTIVE" badge, followed by the standard
+// fallback models. It's built with buildModelChain() from gemini-api.js —
+// the exact same de-duplication the request engine uses — so this display
+// can never drift out of sync with what actually gets called at request
+// time. Re-rendered on every modal open AND live as the user types a
+// custom model name (see the 'input' listener wired in initModals below).
+function ensureFallbackChainContainer() {
+  let wrap = $('settings-fallback-chain-wrap');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'settings-fallback-chain-wrap';
+    wrap.innerHTML = `
+      <p class="field-help fallback-chain-label" id="settings-fallback-chain-label"></p>
+      <div class="fallback-chain" id="settings-fallback-chain"></div>
+    `;
+    $('settings-model').insertAdjacentElement('afterend', wrap);
+  }
+  return wrap;
+}
+
+function renderFallbackChainVisual(rawModelValue) {
+  ensureFallbackChainContainer();
+  $('settings-fallback-chain-label').textContent = t('settingsFallbackChainLabel');
+
+  const preferredModel = (rawModelValue || '').trim() || DEFAULT_MODEL;
+  const chain = buildModelChain(preferredModel);
+  const activeBadge = t('settingsFallbackActiveBadge');
+
+  $('settings-fallback-chain').innerHTML = chain
+    .map((modelName, index) => {
+      const isActive = index === 0;
+      const chip = `<span class="fallback-chip${isActive ? ' fallback-chip--active' : ''}">${escapeHtml(modelName)}${
+        isActive ? `<span class="fallback-chip-badge">${escapeHtml(activeBadge)}</span>` : ''
+      }</span>`;
+      return index === 0 ? chip : `<span class="fallback-chain-arrow" aria-hidden="true">→</span>${chip}`;
+    })
+    .join('');
 }
 export function openHistoryModal() {
   renderHistoryList(storage.getHistory());
@@ -563,6 +682,11 @@ export function initModals({ onSaveProfile, onSaveSettings, onClearKey, onDelete
   });
 
   $('btn-close-settings').addEventListener('click', () => closeModal('modal-settings'));
+  // Live preview: as the user types a custom model name, the fallback-chain
+  // chips re-render immediately (same buildModelChain() logic as the actual
+  // request engine) — no need to save-and-reopen to see where their custom
+  // model would land in the chain.
+  $('settings-model').addEventListener('input', (e) => renderFallbackChainVisual(e.target.value));
   $('btn-save-settings').addEventListener('click', () => {
     onSaveSettings(readSettingsForm());
     closeModal('modal-settings');
