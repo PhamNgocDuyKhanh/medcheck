@@ -1,0 +1,1353 @@
+/* =========================================================================
+   MedCheck — style.css
+   Design concept: Apple Health-authentic — true iOS system colors (black/
+   white grouped backgrounds, systemBlue, systemGray) rather than an
+   approximation, with orange/purple as an orthogonal "data category" layer
+   on top of the existing green/yellow/red severity language. Single
+   geometric sans-serif family (Inter) for the whole app — hierarchy comes
+   from weight and size, never a different typeface.
+   Organized mobile-first; each component's own responsive overrides sit
+   next to it rather than in one giant media-query block at the end.
+   ========================================================================= */
+
+/* ---------------------------- Design tokens ---------------------------- */
+
+:root {
+  /* Single geometric sans-serif family for the entire app — hierarchy comes
+     from weight and size only, never a different typeface. Inter loads via
+     Google Fonts; the fallback stack lands on each OS's native UI font
+     (SF Pro on Apple, Roboto on Android/Chrome OS, Segoe UI on Windows) so
+     text still looks native and correct before/without the web font. */
+  --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-base: 0.9375rem;
+  --fs-md: 1.0625rem;
+  --fs-lg: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
+  --fs-xl: clamp(1.5rem, 1.3rem + 1vw, 2rem);
+  --fs-stamp: clamp(1.05rem, 0.95rem + 0.5vw, 1.35rem);
+  /* Large, bold metric values (test results, scores) — the Apple Health
+     "big number" treatment, paired with --fs-xs uppercase captions. */
+  --fs-metric: clamp(1.375rem, 1.2rem + 0.9vw, 1.75rem);
+
+  /* Generous, breathable spacing scale — Apple Health leans on whitespace
+     itself to create hierarchy rather than heavy borders/dividers. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 40px;
+
+  /* Generous corner radii throughout — cards read as soft, rounded tiles
+     (rounded-2xl/3xl) rather than sharp rectangles, and even small controls
+     (inputs, buttons, chips) get noticeably more rounding than a typical
+     "enterprise dashboard" look. */
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 28px;
+  --radius-pill: 999px;
+
+  /* Fixed brand mark color — intentionally NOT theme-dependent like
+     --accent, so the logo reads the same in light and dark mode rather
+     than shifting with the UI's functional accent color. */
+  --logo-color: #ff4218;
+  --logo-color-hover: #d6350f;
+}
+
+:root,
+:root[data-theme='dark'] {
+  /* Apple's actual iOS dark-mode system palette (Settings.app / Health.app),
+     not an approximation: true black canvas, elevated charcoal cards, and
+     systemBlue/systemGray at their exact documented dark-appearance values.
+
+     Two tiers of "blue" exist deliberately, same reasoning as before: the
+     literal Apple systemBlue (#0A84FF) is used wherever only a 3:1 non-text
+     contrast is required — icons, borders, focus rings — while
+     --accent-strong is a brightened variant used for anything rendered as
+     real text or a solid fill, where 4.5:1 applies. Raw systemBlue text
+     directly on the #2C2C2E card only measures ~3.8:1, so a lightened
+     in-family variant (still unmistakably "Apple blue") closes that gap
+     without inventing a different hue. The same two-tier pattern applies to
+     the category colors below. */
+  --bg: #000000;          /* true black — Apple's systemBackground (dark) */
+  --surface: #2c2c2e;     /* tertiarySystemBackground (dark) — elevated card */
+  --surface-2: #1c1c1e;   /* secondarySystemBackground (dark) — recessed tray/input fill */
+  --border: #38383a;      /* Apple's separator gray (dark) */
+  --border-strong: #48484a;
+  --text: #ffffff;        /* UIColor.label, dark */
+  --text-muted: #8e8e93;  /* UIColor.systemGray — Apple keeps this constant across appearances */
+
+  --accent: #0a84ff;         /* systemBlue, dark appearance (exact) */
+  --accent-strong: #64b5ff;  /* brightened for AA text/fill on #2c2c2e (~6.4:1) */
+  --accent-hover: #8fcbff;
+  --accent-active: #b8deff;
+  --accent-soft: rgba(10, 132, 255, 0.16);
+  --accent-contrast: #000000; /* dark text/bg on top of the light accent fill */
+  --focus-ring: rgba(10, 132, 255, 0.45);
+
+  /* Category colors — an orthogonal identity layer for "what kind of data
+     is this" (lab/vitals vs. prescriptions), deliberately NOT reusing
+     red/green so they never collide with the existing safe/caution/danger
+     verdict language used on every result card. Orange reads as "lab/vital
+     signs" and purple as "medication" in Apple's own Health app icon set. */
+  --category-lab: #ff9f0a;         /* systemOrange, dark */
+  --category-lab-strong: #ffb454;  /* AA-safe on #2c2c2e (~7.9:1) */
+  --category-lab-soft: rgba(255, 159, 10, 0.16);
+
+  --category-rx: #bf5af2;         /* systemPurple, dark */
+  --category-rx-strong: #d291ff;  /* AA-safe on #2c2c2e (~6.1:1) */
+  --category-rx-soft: rgba(191, 90, 242, 0.16);
+
+  --verdict-green: #5fbf7a;
+  --verdict-green-bg: rgba(95, 191, 122, 0.16);
+  --verdict-yellow: #e0b84a;
+  --verdict-yellow-bg: rgba(224, 184, 74, 0.16);
+  --verdict-red: #e0685c;
+  --verdict-red-bg: rgba(224, 104, 92, 0.16);
+
+  /* On a true-black canvas, elevation reads almost entirely through the
+     surface color itself (black → #2c2c2e is already a huge jump), so the
+     shadow only needs to add a soft hint of depth under the edge. */
+  --shadow-card: 0 1px 1px rgba(0, 0, 0, 0.3), 0 12px 28px -18px rgba(0, 0, 0, 0.7);
+  --shadow-raised: 0 2px 6px rgba(0, 0, 0, 0.4), 0 18px 40px -20px rgba(0, 0, 0, 0.75);
+  --card-border: #38383a;
+  /* Apple's systemFill (dark) — the translucent gray used for controls like
+     a segmented control's track, which sit directly on the page rather
+     than nested in a white card (where --surface-2 already provides
+     contrast). */
+  --fill-tray: rgba(118, 118, 128, 0.24);
+}
+
+:root[data-theme='light'] {
+  /* Apple's actual iOS light-mode system palette: the soft gray canvas
+     (secondarySystemBackground) that every grouped list sits on, with pure
+     white cards floating above it — this is what makes iOS light mode read
+     as "soft" rather than "white-on-white office software".
+
+     Same two-tier accent reasoning as dark mode: literal systemBlue
+     (#007AFF) for icons/borders/focus rings, a deepened --accent-strong for
+     real text/fills (~7.7:1 vs raw systemBlue's ~4.0:1 on white). Apple's
+     own systemGray (#8E8E93) is used for secondary text in BOTH themes per
+     spec — worth knowing this measures ~3.3:1 on white, short of strict
+     WCAG AA body-text contrast. That's not a bug here: it's genuinely how
+     Apple's own secondaryLabel renders in iOS today, a deliberate
+     legibility/hierarchy trade-off on Apple's part, not an oversight on
+     ours. Flagging it in case anything using this color is accessibility-
+     critical (e.g. the medical disclaimer) rather than merely secondary. */
+  --bg: #f2f2f7;          /* systemBackground (light) — soft gray canvas */
+  --surface: #ffffff;     /* pure white card */
+  --surface-2: #f2f2f7;   /* recessed tray/input fill — same tone as canvas, nested inside a white card */
+  --border: rgba(60, 60, 67, 0.29); /* Apple's separator color (light) */
+  --border-strong: rgba(60, 60, 67, 0.36);
+  --text: #000000;        /* UIColor.label, light */
+  --text-muted: #8e8e93;  /* UIColor.systemGray */
+
+  --accent: #007aff;         /* systemBlue, light appearance (exact) */
+  --accent-strong: #0051a8;  /* deepened for AA text/fill on white (~7.7:1) */
+  --accent-hover: #003e82;
+  --accent-active: #002c5e;
+  --accent-soft: rgba(0, 122, 255, 0.1);
+  --accent-contrast: #ffffff;
+  --focus-ring: rgba(0, 122, 255, 0.35);
+
+  --category-lab: #ff9500;         /* systemOrange, light */
+  --category-lab-strong: #ad5000;  /* AA-safe on white (~5.4:1) */
+  --category-lab-soft: rgba(255, 149, 0, 0.12);
+
+  --category-rx: #af52de;         /* systemPurple, light */
+  --category-rx-strong: #8e3fb5;  /* AA-safe on white (~6.0:1) */
+  --category-rx-soft: rgba(175, 82, 222, 0.12);
+
+  --verdict-green: #1d8348;
+  --verdict-green-bg: rgba(29, 131, 72, 0.1);
+  --verdict-yellow: #9a6b0c;
+  --verdict-yellow-bg: rgba(154, 107, 12, 0.1);
+  --verdict-red: #b23a2e;
+  --verdict-red-bg: rgba(178, 58, 46, 0.1);
+
+  /* A soft, diffuse shadow gives the white card its "floating on gray"
+     lift — the canvas is no longer white itself, so cards need this to
+     read as elevated rather than blending flat into the page. */
+  --shadow-card: 0 1px 2px rgba(60, 60, 67, 0.06), 0 12px 28px -18px rgba(60, 60, 67, 0.2);
+  --shadow-raised: 0 4px 10px rgba(60, 60, 67, 0.08), 0 20px 44px -20px rgba(60, 60, 67, 0.24);
+  --card-border: rgba(60, 60, 67, 0.08);
+  /* Apple's systemFill (light) — the translucent gray used for controls
+     like a segmented control's track, which sit directly on the page
+     rather than nested in a white card. */
+  --fill-tray: rgba(60, 60, 67, 0.06);
+}
+
+/* ------------------------------- Reset ---------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* The `hidden` attribute must always win, full stop — several components
+   below set their own `display` (flex/grid) for their visible state, which
+   otherwise has equal CSS specificity to the browser's default `[hidden]`
+   rule and can silently lose the cascade tie, leaving "hidden" elements
+   still rendered. This one rule removes that entire bug class. */
+[hidden] {
+  display: none !important;
+}
+
+/* ------------------------------ Scrollbars -------------------------------
+   A thin, rounded, low-contrast scrollbar closer to macOS/iOS than the
+   default thick OS scrollbar — most noticeable on Windows/Linux/Chrome,
+   where the native scrollbar is the boxy classic style; macOS Safari
+   already shows its own thin auto-hiding overlay scrollbar natively and
+   isn't meaningfully changed by this.
+
+   Maintainability: both rules are defined ONCE, here, using existing
+   theme tokens so they automatically match light/dark mode. scrollbar-color
+   is an inherited property, so setting it on `html` covers every scrollable
+   descendant in Firefox with no extra selectors. `*::-webkit-scrollbar` is
+   the standard way to reach the same result in Chrome/Safari/Edge — any
+   modal, list, or overflow container added later gets this for free. */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--border-strong);
+  border-radius: var(--radius-pill);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-muted);
+}
+
+button {
+  font-family: inherit;
+}
+
+a {
+  color: var(--accent-strong);
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* -------------------------------- Icons ---------------------------------- */
+
+.icon {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.icon--spin {
+  animation: icon-spin 0.9s linear infinite;
+}
+
+@keyframes icon-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ------------------------------- Layout --------------------------------- */
+
+.app-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--space-4);
+  padding-top: max(var(--space-4), env(safe-area-inset-top));
+  padding-bottom: max(var(--space-5), env(safe-area-inset-bottom));
+}
+
+@media (min-width: 1024px) {
+  .app-shell {
+    padding: var(--space-6);
+  }
+}
+
+.layout-grid {
+  display: block;
+}
+
+.layout-secondary {
+  margin-top: var(--space-4);
+}
+
+.layout-primary {
+  /* Establishes a query container so the tab strip below can respond to
+     its own column width, not the viewport — critical once the desktop
+     grid puts it inside a fixed ~360-420px sidebar (see .tab-btn). */
+  container-type: inline-size;
+}
+
+@media (min-width: 1024px) {
+  .layout-grid {
+    display: grid;
+    grid-template-columns: minmax(360px, 420px) 1fr;
+    gap: var(--space-6);
+    align-items: start;
+  }
+  .layout-secondary {
+    margin-top: 0;
+    position: sticky;
+    top: var(--space-5);
+  }
+}
+
+/* ------------------------------- Header --------------------------------- */
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+@media (hover: hover) {
+  .brand:hover {
+    opacity: 0.85;
+  }
+
+  .brand:hover .brand-mark {
+    color: var(--logo-color-hover);
+  }
+}
+
+.brand:active {
+  transform: scale(0.98);
+}
+
+.brand-mark {
+  font-size: 1.7rem;
+  color: var(--logo-color);
+  line-height: 1;
+  transition: color 0.25s ease;
+}
+
+.brand-text h1 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.brand-tagline {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin: 2px 0 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.btn-icon {
+  width: 46px;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  color: var(--text);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+@media (hover: hover) {
+  .btn-icon:hover {
+    border-color: var(--accent);
+    color: var(--accent-strong);
+    background: var(--accent-soft);
+  }
+}
+
+.btn-icon:active {
+  transform: scale(0.92);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.btn-lang {
+  width: auto;
+  padding: 0 12px;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.04em;
+}
+
+/* -------------------------------- Tabs ----------------------------------
+   iOS-style segmented control: a soft rounded pill-shaped tray holding
+   each mode as its own segment. The active segment gets a floating
+   surface-colored pill with a gentle shadow, the same visual language
+   Apple Health uses for its own segmented switches — no folder-tab
+   metaphor, no hard underline. */
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  background: var(--fill-tray);
+  padding: 4px;
+  border-radius: var(--radius-lg);
+}
+
+.tab-btn {
+  flex: 1 1 calc(50% - 4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 13px 6px 11px;
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tab-icon {
+  color: inherit;
+}
+
+.tab-label {
+  line-height: 1.15;
+}
+
+.tab-btn.active {
+  background: var(--surface);
+  color: var(--accent-strong);
+  box-shadow: var(--shadow-raised);
+}
+
+/* Category identity colors — Apple Health-style: each data type keeps its
+   own icon tint at all times (active or not), while the segmented control
+   itself stays visually unified. This is a separate axis from the
+   green/yellow/red verdict severity used on every result card, so a
+   "Danger" lab result and the Lab tab's orange icon never fight for the
+   same meaning. */
+.tab-btn[data-category='lab'] .tab-icon {
+  color: var(--category-lab);
+}
+
+.tab-btn[data-category='lab'].active {
+  color: var(--category-lab-strong);
+}
+
+.tab-btn[data-category='rx'] .tab-icon {
+  color: var(--category-rx);
+}
+
+.tab-btn[data-category='rx'].active {
+  color: var(--category-rx-strong);
+}
+
+@media (hover: hover) {
+  .tab-btn:not(.active):hover {
+    color: var(--text);
+    background: var(--accent-soft);
+  }
+}
+
+@container (min-width: 480px) {
+  .tab-btn {
+    flex: 1 1 0;
+  }
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+  margin-top: var(--space-4);
+}
+
+/* -------------------------------- Cards ---------------------------------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  margin-bottom: var(--space-4);
+  box-shadow: var(--shadow-card);
+}
+
+@media (min-width: 640px) {
+  .card {
+    padding: var(--space-6);
+  }
+}
+
+.tab-intro {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  margin: 0 0 var(--space-2);
+}
+
+.tab-hint {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin: 0 0 var(--space-2);
+}
+
+.inline-disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: var(--fs-xs);
+  background: var(--verdict-yellow-bg);
+  color: var(--verdict-yellow);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  margin: 0 0 var(--space-4);
+}
+
+.inline-disclaimer .icon {
+  margin-top: 1px;
+}
+
+.inline-disclaimer span:last-child {
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* -------------------------------- Forms ----------------------------------- */
+
+label {
+  display: block;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: var(--space-4) 0 8px;
+}
+
+label:first-child {
+  margin-top: 0;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 13px 16px;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-base);
+  font-family: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+/* Custom dropdown arrow — the native one renders flush against the right
+   edge with no breathing room, and looks different in every browser. This
+   is a plain background-image (not a JS-driven icon like the number
+   stepper) since a <select>'s own text/arrow can't be wrapped in extra
+   markup without breaking native keyboard/accessibility behavior.
+   Hardcoding the arrow color to #8E8E93 is safe specifically because
+   --text-muted is defined as that exact value in BOTH light and dark theme
+   (Apple's systemGray is spec'd to stay constant across appearances) — if
+   that ever changes to differ per theme, this arrow would need to switch
+   to a per-theme background-image instead. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 44px;
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 13px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5.5 8.5 12 15l6.5-6.5'/%3E%3C/svg%3E");
+}
+
+input:focus,
+select:focus {
+  background-color: var(--surface);
+  border-color: var(--border-strong);
+}
+
+input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--focus-ring);
+  transition: box-shadow 0.15s ease;
+}
+
+/* ---------------------- Number input stepper -----------------------------
+   Replaces the browser/OS's default up/down spin arrows (which look
+   completely different across Chrome/Firefox/Safari/Windows/macOS) with one
+   consistent control, styled like a compact macOS stepper but using the
+   app's own soft/rounded language instead of a skeuomorphic 3D bevel.
+
+   Maintainability: initNumberSteppers() in ui.js auto-wraps every
+   input[type="number"] on the page — adding a new number field anywhere in
+   the app gets this treatment for free, no per-field wiring needed. The
+   native spin buttons are hidden globally here as a CSS-only fallback too,
+   so even if the JS enhancement fails for any reason, no field is ever left
+   showing a broken or inconsistent native spinner. */
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.number-stepper {
+  position: relative;
+  width: 100%;
+}
+
+.number-stepper input[type='number'] {
+  padding-right: 44px;
+}
+
+.number-stepper-controls {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  right: 6px;
+  width: 32px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+}
+
+.number-stepper-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.number-stepper-btn:first-child {
+  border-bottom: 1px solid var(--card-border);
+}
+
+.number-stepper-btn svg {
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .number-stepper-btn:hover {
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+  }
+}
+
+.number-stepper-btn:active {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  transform: scale(0.9);
+}
+
+.flex-group {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.field-grow {
+  flex: 2;
+}
+
+.field-shrink {
+  flex: 1;
+}
+
+.field-help {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin: 6px 0 var(--space-3);
+}
+
+.inline-link {
+  display: inline-block;
+  font-size: var(--fs-sm);
+  text-decoration: underline;
+  margin-bottom: var(--space-3);
+}
+
+/* -------------------------------- Buttons ----------------------------------- */
+
+.btn-action {
+  width: 100%;
+  padding: 15px;
+  margin-top: var(--space-3);
+  background: var(--accent-strong);
+  color: var(--accent-contrast);
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: var(--fs-base);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+@media (hover: hover) {
+  .btn-action:hover {
+    background: var(--accent-hover);
+    box-shadow: 0 4px 14px -6px var(--accent);
+  }
+}
+
+.btn-action:active {
+  background: var(--accent-active);
+  transform: scale(0.98);
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1.5px solid var(--border);
+  color: var(--text);
+  box-shadow: none;
+}
+
+@media (hover: hover) {
+  .btn-outline:hover {
+    border-color: var(--accent);
+    color: var(--accent-strong);
+    background: var(--accent-soft);
+    box-shadow: none;
+  }
+}
+
+.btn-outline:active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.btn-success {
+  background: var(--verdict-green);
+  color: #0c1a10;
+}
+
+.btn-danger-outline {
+  background: transparent;
+  border: 1.5px solid var(--verdict-red);
+  color: var(--verdict-red);
+}
+
+.btn-icon-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.btn-icon-sm:hover {
+  color: var(--verdict-red);
+  background: var(--verdict-red-bg);
+}
+
+/* ----------------------------- Capture zones --------------------------------
+   Generated identically for every camera-capable mode by ui.js. */
+
+.capture-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+@media (min-width: 480px) {
+  .capture-controls {
+    flex-direction: row;
+  }
+  .capture-controls .btn-action {
+    margin-top: 0;
+  }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.camera-area {
+  margin-top: var(--space-3);
+}
+
+.camera-area video {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  max-height: 340px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  background: #000;
+}
+
+.preview-wrap {
+  margin-top: var(--space-3);
+}
+
+.preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--space-2);
+}
+
+.preview-item {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.preview-item--image {
+  aspect-ratio: 1 / 1;
+}
+
+.preview-item--image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.preview-item--file {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: var(--space-2);
+  border-style: dashed;
+  border-width: 1.5px;
+  color: var(--text-muted);
+}
+
+.preview-item-name {
+  width: 100%;
+  font-size: var(--fs-xs);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-item-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.65);
+  color: #fff;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+@media (hover: hover) {
+  .preview-item-remove:hover {
+    background: var(--verdict-red);
+  }
+}
+
+.preview-item-remove:active {
+  transform: scale(0.9);
+}
+
+.preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.preview-actions .btn-action {
+  flex: 1 1 auto;
+  margin-top: 0;
+}
+
+/* --------------------------- Loading / error / toast ---------------------------- */
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  color: var(--accent-strong);
+  font-weight: 600;
+  font-size: var(--fs-sm);
+  padding: var(--space-4) 0;
+}
+
+.error-banner {
+  background: var(--verdict-red-bg);
+  border: 1px solid var(--verdict-red);
+  color: var(--verdict-red);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-3);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  white-space: pre-line;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-5);
+  transform: translateX(-50%) translateY(16px);
+  background: var(--text);
+  color: var(--bg);
+  padding: 10px 22px;
+  border-radius: 999px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 200;
+  max-width: 90vw;
+}
+
+.toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ------------------------------ Result / verdict ------------------------------- */
+
+.result-box {
+  animation: fade-in 0.2s ease;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.verdict-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: var(--fs-stamp);
+  letter-spacing: -0.01em;
+  padding: 12px 22px;
+  border-radius: var(--radius-pill);
+}
+
+.verdict-stamp::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.verdict-stamp--green {
+  color: var(--verdict-green);
+  background: var(--verdict-green-bg);
+}
+
+.verdict-stamp--yellow {
+  color: var(--verdict-yellow);
+  background: var(--verdict-yellow-bg);
+}
+
+.verdict-stamp--red {
+  color: var(--verdict-red);
+  background: var(--verdict-red-bg);
+}
+
+.verdict-summary {
+  font-size: var(--fs-base);
+  line-height: 1.6;
+  margin: var(--space-4) 0 0;
+  color: var(--text-muted);
+}
+
+.result-heading {
+  font-family: var(--font-sans);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: var(--space-5) 0 var(--space-2);
+}
+
+/* Grouped-list tray, Apple Health style: a soft rounded container holding
+   each metric as its own breathable row — label small/muted/uppercase,
+   value large/bold, no harsh table rules. */
+.details-table {
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.detail-row {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--card-border);
+  font-size: var(--fs-sm);
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-flag-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: var(--verdict-green);
+  background: var(--verdict-green-bg);
+  flex-shrink: 0;
+}
+
+.detail-label {
+  font-weight: 600;
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.detail-value {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: var(--fs-metric);
+  letter-spacing: -0.01em;
+  text-align: right;
+  color: var(--text);
+}
+
+/* Some modes (lab reference ranges, prescription dosage+purpose) return a
+   full descriptive phrase in "value" rather than a short number — applying
+   the same giant metric size to a whole sentence looks broken/oversized,
+   so long values step down to a more modest, still-bold size instead. */
+.detail-value--long {
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.detail-row--caution .detail-flag-icon {
+  color: var(--verdict-yellow);
+  background: var(--verdict-yellow-bg);
+}
+
+.detail-row--danger .detail-flag-icon {
+  color: var(--verdict-red);
+  background: var(--verdict-red-bg);
+}
+
+.detail-row--danger .detail-value {
+  color: var(--verdict-red);
+}
+
+.recommendation-block {
+  background: var(--accent-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.recommendation-block .result-heading {
+  margin-top: 0;
+  color: var(--accent-strong);
+}
+
+.recommendation-block p {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.disclaimer-block {
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.disclaimer-block .result-heading {
+  margin-top: 0;
+}
+
+.disclaimer-block p {
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* -------------------------------- Modals ----------------------------------- */
+
+dialog.modal {
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  color: var(--text);
+  padding: var(--space-6);
+  width: min(90vw, 440px);
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-raised);
+}
+
+dialog.modal-wide {
+  width: min(92vw, 560px);
+}
+
+dialog.modal::backdrop {
+  background: rgba(10, 8, 6, 0.55);
+  backdrop-filter: blur(6px);
+}
+
+dialog.modal h2 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  margin: 0 0 var(--space-4);
+}
+
+.modal-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+.modal-actions .btn-action {
+  margin-top: 0;
+}
+
+.modal-actions--split {
+  margin-bottom: var(--space-2);
+}
+
+/* -------------------------------- History ----------------------------------- */
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.history-empty {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  text-align: center;
+  padding: var(--space-6) 0;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+}
+
+.history-item-main {
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.history-item-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.history-item-title {
+  font-weight: 600;
+  font-size: var(--fs-sm);
+}
+
+.history-item-summary {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.history-item-date {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  margin-top: 6px;
+}
+
+/* Soft pastel status pill — the shared "badge" component used anywhere a
+   verdict/category needs a compact, non-harsh indicator instead of a bare
+   colored dot or a hard-bordered tag. */
+.verdict-pill {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 700;
+  font-size: var(--fs-xs);
+  padding: 3px 11px;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.verdict-pill--green {
+  color: var(--verdict-green);
+  background: var(--verdict-green-bg);
+}
+
+.verdict-pill--yellow {
+  color: var(--verdict-yellow);
+  background: var(--verdict-yellow-bg);
+}
+
+.verdict-pill--red {
+  color: var(--verdict-red);
+  background: var(--verdict-red-bg);
+}

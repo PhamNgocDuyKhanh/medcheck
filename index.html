@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MedCheck — Personal Health Assistant</title>
+<meta name="description" content="Scan food labels, prescriptions, and lab reports for instant, personalized AI guidance — 100% client-side, your data never leaves your browser except to call your own Gemini API key.">
+<meta name="theme-color" id="meta-theme-color" content="#0f172a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<!-- iOS home-screen app behavior. Android needs none of this — Chrome reads
+     display/icons/colors directly from manifest.json, which is already
+     correctly configured (including the maskable icon Android's adaptive
+     launcher shapes need). iOS Safari ignores most of the manifest and
+     requires these separately for a proper "installed app" feel instead of
+     opening inside ordinary Safari chrome. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="MedCheck">
+
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self';
+  style-src 'self' https://fonts.googleapis.com;
+  font-src https://fonts.gstatic.com;
+  img-src 'self' data: blob:;
+  media-src 'self' blob:;
+  connect-src 'self' https://generativelanguage.googleapis.com;
+  manifest-src 'self';
+  base-uri 'self';
+  form-action 'self';
+">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-shell">
+
+  <header class="app-header">
+    <button type="button" id="btn-home" class="brand" aria-label="MedCheck">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 13h2.5l1.5-3 1.8 7 2-11 1.5 7h2l1.7 3 4-7" stroke="var(--logo-color)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <div class="brand-text">
+        <h1 data-i18n="appName">MedCheck</h1>
+        <p class="brand-tagline" data-i18n="appTagline"></p>
+      </div>
+    </button>
+    <div class="header-actions">
+      <button type="button" id="btn-nav-profile" class="btn-icon" data-i18n-aria-label="navProfile" aria-label="Profile"><span data-icon="user" data-icon-size="19"></span></button>
+      <button type="button" id="btn-nav-history" class="btn-icon" data-i18n-aria-label="navHistory" aria-label="History"><span data-icon="history" data-icon-size="19"></span></button>
+      <button type="button" id="btn-nav-settings" class="btn-icon" data-i18n-aria-label="navSettings" aria-label="Settings"><span data-icon="settings" data-icon-size="19"></span></button>
+      <button type="button" id="btn-lang" class="btn-icon btn-lang" aria-label="Language">EN</button>
+      <button type="button" id="btn-theme" class="btn-icon" data-i18n-aria-label="toggleThemeAria" aria-label="Theme"></button>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <div class="layout-grid">
+
+      <div class="layout-primary">
+        <nav class="tabs" role="tablist" aria-label="Analysis mode">
+          <button type="button" class="tab-btn active" data-mode="food-scan" role="tab" aria-selected="true">
+            <span class="tab-icon" data-icon="camera" data-icon-size="20"></span>
+            <span class="tab-label" data-i18n="tabFoodScan"></span>
+          </button>
+          <button type="button" class="tab-btn" data-mode="food-manual" role="tab" aria-selected="false">
+            <span class="tab-icon" data-icon="edit" data-icon-size="20"></span>
+            <span class="tab-label" data-i18n="tabFoodManual"></span>
+          </button>
+          <button type="button" class="tab-btn" data-mode="prescription" data-category="rx" role="tab" aria-selected="false">
+            <span class="tab-icon" data-icon="pill" data-icon-size="20"></span>
+            <span class="tab-label" data-i18n="tabPrescription"></span>
+          </button>
+          <button type="button" class="tab-btn" data-mode="lab-report" data-category="lab" role="tab" aria-selected="false">
+            <span class="tab-icon" data-icon="flask" data-icon-size="20"></span>
+            <span class="tab-label" data-i18n="tabLabReport"></span>
+          </button>
+        </nav>
+
+        <section id="content-food-scan" class="tab-content active">
+          <div class="card">
+            <p class="tab-intro" data-i18n="foodScanIntro"></p>
+            <div class="capture-zone" data-mode="food-scan"></div>
+          </div>
+        </section>
+
+        <section id="content-food-manual" class="tab-content">
+          <div class="card">
+            <label for="food-name" data-i18n="foodNameLabel"></label>
+            <input type="text" id="food-name" data-i18n-placeholder="foodNamePlaceholder">
+            <div class="flex-group">
+              <div class="field-grow">
+                <label for="food-amount" data-i18n="foodAmountLabel"></label>
+                <input type="number" id="food-amount" value="100" min="0" inputmode="decimal">
+              </div>
+              <div class="field-shrink">
+                <label for="food-unit" data-i18n="foodUnitLabel"></label>
+                <select id="food-unit">
+                  <option value="g" data-i18n="unitGram"></option>
+                  <option value="ml" data-i18n="unitMl"></option>
+                  <option value="piece" data-i18n="unitPiece"></option>
+                </select>
+              </div>
+            </div>
+            <button type="button" id="btn-analyze-manual" class="btn-action" data-i18n="btnAnalyze"></button>
+          </div>
+        </section>
+
+        <section id="content-prescription" class="tab-content">
+          <div class="card">
+            <p class="tab-intro" data-i18n="prescriptionIntro"></p>
+            <p class="inline-disclaimer"><span data-icon="alertTriangle" data-icon-size="16"></span><span data-i18n="prescriptionDisclaimerShort"></span></p>
+            <div class="capture-zone" data-mode="prescription"></div>
+          </div>
+        </section>
+
+        <section id="content-lab-report" class="tab-content">
+          <div class="card">
+            <p class="tab-intro" data-i18n="labReportIntro"></p>
+            <p class="tab-hint" data-i18n="labReportHint"></p>
+            <p class="inline-disclaimer"><span data-icon="alertTriangle" data-icon-size="16"></span><span data-i18n="labDisclaimerShort"></span></p>
+            <div class="capture-zone" data-mode="lab-report"></div>
+          </div>
+        </section>
+
+        <div id="error-banner" class="error-banner" role="alert" hidden></div>
+        <div id="loading" class="loading" role="status" hidden>
+          <span data-icon="spinner" data-icon-size="18"></span>
+          <span id="loading-text"></span>
+        </div>
+      </div>
+
+      <div class="layout-secondary">
+        <div id="result-box" class="result-box card" hidden></div>
+      </div>
+
+    </div>
+  </main>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+</div>
+
+<dialog id="modal-profile" class="modal">
+  <h2 data-i18n="profileTitle"></h2>
+  <label for="profile-ldl" data-i18n="profileLdlLabel"></label>
+  <input type="number" id="profile-ldl" step="0.01" inputmode="decimal">
+  <div class="flex-group">
+    <div class="field-grow">
+      <label for="profile-hdl" data-i18n="profileHdlLabel"></label>
+      <input type="number" id="profile-hdl" step="0.01" inputmode="decimal">
+    </div>
+    <div class="field-grow">
+      <label for="profile-tg" data-i18n="profileTgLabel"></label>
+      <input type="number" id="profile-tg" step="0.01" inputmode="decimal">
+    </div>
+  </div>
+  <label for="profile-allergies" data-i18n="profileAllergiesLabel"></label>
+  <input type="text" id="profile-allergies" data-i18n-placeholder="profileAllergiesPlaceholder">
+  <label for="profile-conditions" data-i18n="profileConditionsLabel"></label>
+  <input type="text" id="profile-conditions" data-i18n-placeholder="profileConditionsPlaceholder">
+  <label for="profile-medications" data-i18n="profileMedicationsLabel"></label>
+  <input type="text" id="profile-medications" data-i18n-placeholder="profileMedicationsPlaceholder">
+  <label for="profile-diet" data-i18n="profileDietLabel"></label>
+  <select id="profile-diet">
+    <option value="none" data-i18n="dietNone"></option>
+    <option value="keto" data-i18n="dietKeto"></option>
+    <option value="vegan" data-i18n="dietVegan"></option>
+    <option value="vegetarian" data-i18n="dietVegetarian"></option>
+    <option value="low-sodium" data-i18n="dietLowSodium"></option>
+    <option value="diabetic" data-i18n="dietDiabetic"></option>
+  </select>
+  <div class="modal-actions">
+    <button type="button" id="btn-close-profile" class="btn-action btn-outline" data-i18n="btnCancel"></button>
+    <button type="button" id="btn-save-profile" class="btn-action" data-i18n="btnSave"></button>
+  </div>
+</dialog>
+
+<dialog id="modal-settings" class="modal">
+  <h2 data-i18n="settingsTitle"></h2>
+  <label for="settings-api-key" data-i18n="apiKeyLabel"></label>
+  <input type="password" id="settings-api-key" data-i18n-placeholder="apiKeyPlaceholder" autocomplete="off" spellcheck="false">
+  <p class="field-help" data-i18n="apiKeyHelp"></p>
+  <a class="inline-link" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" data-i18n="apiKeyGetFree"></a>
+  <label for="settings-model" data-i18n="modelLabel"></label>
+  <input type="text" id="settings-model" placeholder="gemini-3.6-flash" autocomplete="off" spellcheck="false">
+  <p class="field-help" data-i18n="modelHelp"></p>
+  <label for="settings-response-lang" data-i18n="responseLanguageLabel"></label>
+  <select id="settings-response-lang">
+    <option value="auto" data-i18n="respLangAuto"></option>
+    <option value="vi" data-i18n="respLangVi"></option>
+    <option value="en" data-i18n="respLangEn"></option>
+  </select>
+  <p class="field-help" data-i18n="responseLanguageHelp"></p>
+  <div class="modal-actions modal-actions--split">
+    <button type="button" id="btn-clear-key" class="btn-action btn-danger-outline" data-i18n="btnClearKey"></button>
+  </div>
+  <div class="modal-actions">
+    <button type="button" id="btn-close-settings" class="btn-action btn-outline" data-i18n="btnCancel"></button>
+    <button type="button" id="btn-save-settings" class="btn-action" data-i18n="btnSave"></button>
+  </div>
+</dialog>
+
+<dialog id="modal-history" class="modal modal-wide">
+  <h2 data-i18n="historyTitle"></h2>
+  <div id="history-list" class="history-list"></div>
+  <div class="modal-actions">
+    <button type="button" id="btn-clear-history" class="btn-action btn-danger-outline" data-i18n="btnClearAll"></button>
+    <button type="button" id="btn-close-history" class="btn-action btn-outline" data-i18n="btnClose"></button>
+  </div>
+</dialog>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Security headers for static hosts that read this file (Netlify, Cloudflare
+# Pages). GitHub Pages does not support custom response headers at all — if
+# you're hosting there, these can't be applied; a small reverse proxy (e.g.
+# Cloudflare in front of Pages) is the usual workaround.
+#
+# Why this file exists: index.html's Content-Security-Policy is delivered via
+# a <meta> tag, which the CSP spec does not allow to carry frame-ancestors,
+# sandbox, or report-uri/report-to. Those directives only take effect from a
+# real HTTP response header, which only a server (or edge host) can send —
+# hence this separate file rather than adding them to the meta tag.
+
+/*
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), interest-cohort=()
