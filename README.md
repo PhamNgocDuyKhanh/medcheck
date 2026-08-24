@@ -60,7 +60,9 @@ medcheck/
 │   └── apple-touch-icon.png
 └── js/
     ├── app.js                # Entry point — wires everything together
-    ├── config.js              # Constants: storage keys, limits, endpoints
+    ├── config.js              # Constants: storage keys, limits, endpoints,
+    │                            # default/fallback Gemini models (see "Updating
+    │                            # models" below)
     ├── i18n.js                 # Translations (VI/EN) + Gemini prompt builders
     ├── ui.js                    # All DOM rendering and DOM-driven state
     ├── camera.js                 # Camera capture + file reading primitives
@@ -102,6 +104,52 @@ Your key is stored only in your browser's `localStorage` and sent directly
 to `generativelanguage.googleapis.com` with every request — MedCheck has
 no server to intercept or log it.
 
+## Updating models
+
+Google periodically renames, retires, or ships new Gemini models. Every
+model name in the app lives in **one place** — `js/config.js` — so keeping
+up to date is a two-line edit, no other file needs to change:
+
+```js
+// js/config.js
+
+export const DEFAULT_MODEL = 'gemini-3.6-flash';   // 1. the primary model
+
+export const FALLBACK_MODELS = [
+  'gemini-3.6-flash',       // 1. Primary — same as DEFAULT_MODEL above
+  'gemini-2.5-flash',       // 2. Fallback 1
+  'gemini-2.0-flash',       // 3. Fallback 2
+  'gemini-2.5-flash-lite',  // 4. Fallback 3
+  'gemini-2.5-pro',         // 5. Final fallback
+];
+```
+
+**To adopt a new model**, e.g. Google ships `gemini-4.0-flash` to replace
+`gemini-3.6-flash`:
+
+1. Update `DEFAULT_MODEL` to `'gemini-4.0-flash'`.
+2. Update the first entry in `FALLBACK_MODELS` to match.
+3. Reorder, add, or remove any other entries in `FALLBACK_MODELS` the same
+   way — order is priority order, first-to-last.
+
+That's it — `gemini-api.js`'s retry/fallback logic and the fallback-chain
+chip preview in Settings both read `FALLBACK_MODELS` live, so they can
+never drift out of sync with each other.
+
+One cosmetic-only exception: `index.html` has a hardcoded `placeholder`
+attribute (`placeholder="gemini-3.6-flash"`) on the Settings model input.
+It's just greyed-out hint text for an empty field and has zero effect on
+behavior, but update it too if you want it to stay accurate:
+
+```html
+<input type="text" id="settings-model" placeholder="gemini-4.0-flash" ...>
+```
+
+Anyone using the app keeps working through this change automatically —
+a user's own custom model in Settings is always tried first regardless of
+what `DEFAULT_MODEL`/`FALLBACK_MODELS` say; these constants only affect
+new installs and the automatic fallback chain.
+
 ## Deploying to GitHub Pages
 
 1. Push this repository to GitHub.
@@ -116,6 +164,44 @@ protection, MIME-sniffing protection, etc.) that Netlify and Cloudflare
 Pages read automatically. **GitHub Pages does not support custom response
 headers at all**, so `_headers` has no effect there. If you need those
 protections on GitHub Pages, put a service like Cloudflare in front of it.
+
+## Updating the installed PWA (important!)
+
+Pushing new code to GitHub updates the live URL immediately, but **that
+alone does not update the app for anyone who already installed MedCheck
+to their phone's home screen.** Installed PWAs are served from the
+service worker's offline cache, and browsers only re-check that cache when
+`service-worker.js` itself changes.
+
+**The rule:** any time you change a file listed in `SHELL_ASSETS` inside
+`service-worker.js` (any `js/*.js`, `style.css`, `index.html`,
+`manifest.json`, or an app icon), bump the version on this one line
+*before* pushing:
+
+```js
+// service-worker.js
+const CACHE_NAME = 'medcheck-shell-v2';   // ← bump to v3, v4, ... on every
+                                           //   deploy that touches a shell file
+```
+
+That single edit is what triggers the update — changing this line changes
+`service-worker.js`'s own bytes, which is the only thing a browser checks
+to decide "there's a new version." Forgetting it means the code on GitHub
+and the live URL are both updated, but everyone with the app already
+installed keeps silently running the old cached files indefinitely.
+
+A couple of things worth knowing about how it rolls out once you do bump it:
+- **No push notification** — the check only happens when someone opens the
+  app. If they don't open it for a while, they don't get the update until
+  they do.
+- **One reopen needed** — the new files download and get cached in the
+  background on that visit, but the page already running in memory keeps
+  using the old code. The person needs to fully close and reopen the app
+  once (not just switch away and back) for the update to actually take
+  effect.
+
+Not sure if an update landed? Bumping the version is always safe to do
+even if you're unsure — it just forces a fresh recache of everything.
 
 ## Security notes
 
