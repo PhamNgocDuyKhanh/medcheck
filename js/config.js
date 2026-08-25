@@ -34,10 +34,10 @@ export const DEFAULT_MODEL = 'gemini-3.6-flash';
 // first, stepping down through faster/higher-quota and quota-efficient
 // options, with Pro held in reserve for when only heavier reasoning is left.
 export const FALLBACK_MODELS = [
-  'gemini-3.6-flash', // 1. Primary — latest-gen Flash, best default accuracy/speed
-  'gemini-2.5-flash', // 2. Fallback 1 — 2.5-gen multimodal Flash
-  'gemini-2.0-flash', // 3. Fallback 2 — 2.0-gen Flash (ultra-fast, large free quota)
-  'gemini-2.5-flash-lite', // 4. Fallback 3 — quota-efficient Lite model
+  'gemini-3.6-flash', // 1. Primary 
+  'gemini-3.5-flash', // 2. Fallback 1 
+  'gemini-3.7-flash', // 3. Fallback 2 
+  'gemini-3.5-flash-lite', // 4. Fallback 3 
   'gemini-2.5-pro', // 5. Final fallback — Pro model for advanced medical reasoning
 ];
 
