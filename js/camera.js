@@ -12,7 +12,7 @@ import { MAX_INLINE_FILE_BYTES } from './config.js';
 
 export async function startCamera(videoEl) {
   const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: 'environment' },
+    video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
     audio: false,
   });
   videoEl.srcObject = stream;
@@ -26,15 +26,30 @@ export function stopCamera(stream) {
 }
 
 /**
- * Draws the current video frame to an offscreen canvas and returns it as
- * base64 JPEG (no data: prefix — Gemini's inline_data wants raw base64).
+ * Draws the video frame to an offscreen canvas, resizes it if it exceeds max dimensions,
+ * and returns raw base64 JPEG data.
  */
-export function captureFrame(videoEl, quality = 0.9) {
+export function captureFrame(videoEl, maxWidth = 1600, maxHeight = 1600, quality = 0.8) {
+  let width = videoEl.videoWidth;
+  let height = videoEl.videoHeight;
+
+  // Scale down dimensions proportionally if too large
+  if (width > maxWidth || height > maxHeight) {
+    if (width > height) {
+      height = Math.round((height * maxWidth) / width);
+      width = maxWidth;
+    } else {
+      width = Math.round((width * maxHeight) / height);
+      height = maxHeight;
+    }
+  }
+
   const canvas = document.createElement('canvas');
-  canvas.width = videoEl.videoWidth;
-  canvas.height = videoEl.videoHeight;
+  canvas.width = width;
+  canvas.height = height;
   const ctx = canvas.getContext('2d');
-  ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(videoEl, 0, 0, width, height);
+  
   const dataUrl = canvas.toDataURL('image/jpeg', quality);
   return {
     base64: dataUrl.split(',')[1],
@@ -58,10 +73,73 @@ export function validateFile(file, acceptedTypes) {
 }
 
 /**
- * Reads a File/Blob into base64 + mimeType, entirely client-side via
- * FileReader. Works for images and PDFs alike.
+ * Reads a File/Blob, compresses images client-side via canvas, and returns base64 + mimeType.
+ * Passes PDFs through without modification.
  */
-export function readFileAsBase64(file) {
+export async function readFileAsBase64(file) {
+  // If it's a PDF or non-image, read it directly without compression
+  if (!file.type.startsWith('image/')) {
+    return readRawFileAsBase64(file);
+  }
+
+  try {
+    const compressedBlob = await compressImageFile(file, 1600, 1600, 0.8);
+    return readRawFileAsBase64(compressedBlob);
+  } catch (err) {
+    console.warn('Image compression failed, falling back to raw file:', err);
+    return readRawFileAsBase64(file);
+  }
+}
+
+/**
+ * Internal helper to compress image Files using an offscreen canvas.
+ */
+function compressImageFile(file, maxWidth, maxHeight, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('Canvas blob creation failed'));
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Internal helper for reading standard blobs/files into base64.
+ */
+function readRawFileAsBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
